@@ -281,10 +281,18 @@
 <div id="panel-twin3d" class="panel active">
   <div id="viewer-wrap">
 
-    <!-- Anomaly sidebar -->
+    <!-- Anomaly sidebar (hardcoded for reliability) -->
     <div id="anomaly-sidebar">
       <h4>Anomalías (9)</h4>
-      <div id="anm-list"></div>
+      <button class="anm-btn" onclick="showAnomaly(0)"><div class="anm-dot" style="background:#ef4444">1</div><div class="anm-label">Aspa A — Raíz</div></button>
+      <button class="anm-btn" onclick="showAnomaly(1)"><div class="anm-dot" style="background:#ef4444">2</div><div class="anm-label">Aspa B — Raíz</div></button>
+      <button class="anm-btn" onclick="showAnomaly(2)"><div class="anm-dot" style="background:#ef4444">3</div><div class="anm-label">Aspa C — Raíz</div></button>
+      <button class="anm-btn" onclick="showAnomaly(3)"><div class="anm-dot" style="background:#f97316">4</div><div class="anm-label">Hub — Centro</div></button>
+      <button class="anm-btn" onclick="showAnomaly(4)"><div class="anm-dot" style="background:#f97316">5</div><div class="anm-label">Góndola — Nacela</div></button>
+      <button class="anm-btn" onclick="showAnomaly(5)"><div class="anm-dot" style="background:#8b5cf6">6</div><div class="anm-label">Mástil sup. — Derrame</div></button>
+      <button class="anm-btn" onclick="showAnomaly(6)"><div class="anm-dot" style="background:#f97316">7</div><div class="anm-label">Aspa A — Sec. media</div></button>
+      <button class="anm-btn" onclick="showAnomaly(7)"><div class="anm-dot" style="background:#f97316">8</div><div class="anm-label">Aspa B — Sec. media</div></button>
+      <button class="anm-btn" onclick="showAnomaly(8)"><div class="anm-dot" style="background:#f97316">9</div><div class="anm-label">Mástil — Zona media</div></button>
     </div>
 
     <!-- 3D model -->
