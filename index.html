@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AION · Inspección Aerogenerador Gamesa G52 — La Blanca, Oaxaca</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- Three.js r128 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --border: #1f2433;
+    --accent: #c9a84c;
+    --accent2: #e8c96a;
+    --text: #e2e6f0;
+    --muted: #6b7280;
+    --critical: #ef4444;
+    --high: #f97316;
+    --info: #3b82f6;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; gap: 18px;
+    padding: 16px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: .12em; color: var(--accent); }
+  .logo span { color: var(--text); font-weight: 300; }
+  .header-meta { flex: 1; }
+  .header-title { font-size: .95rem; font-weight: 600; color: var(--text); }
+  .header-sub { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+  .badge {
+    padding: 4px 12px; border-radius: 20px; font-size: .72rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+  .badge-critical { background: #3f1010; color: var(--critical); border: 1px solid #7f2020; }
+
+  /* ── Tabs ── */
+  nav {
+    display: flex; gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+  }
+  nav button {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    padding: 14px 22px; font-size: .85rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase;
+    border-bottom: 3px solid transparent;
+    transition: color .2s, border-color .2s;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Panels ── */
+  .panel { display: none; height: calc(100vh - 110px); }
+  .panel.active { display: flex; flex-direction: column; }
+
+  /* ── 3D viewer ── */
+  #viewer-wrap {
+    flex: 1; position: relative; background: #070a10;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #three-canvas { width: 100%; height: 100%; display: block; }
+  .viewer-controls {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px;
+  }
+  .viewer-controls button {
+    background: rgba(13,15,20,.85); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 14px; border-radius: 6px;
+    font-size: .78rem; cursor: pointer; backdrop-filter: blur(4px);
+    transition: background .2s;
+  }
+  .viewer-controls button:hover { background: var(--border); }
+  .viewer-hint {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: .72rem; color: var(--muted);
+    background: rgba(13,15,20,.7); padding: 4px 12px; border-radius: 20px;
+  }
+  #model-status {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    font-size: .85rem; color: var(--muted); pointer-events: none;
+    text-align: center; line-height: 1.8;
+  }
+  #drop-zone {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    background: rgba(19,22,30,.92); border: 2px dashed var(--border);
+    border-radius: 14px; padding: 36px 48px; backdrop-filter: blur(6px);
+    transition: border-color .2s;
+  }
+  #drop-zone.hover { border-color: var(--accent); }
+  #drop-zone .dz-icon { font-size: 2.4rem; }
+  #drop-zone .dz-title { font-size: .95rem; font-weight: 600; color: var(--text); }
+  #drop-zone .dz-sub { font-size: .78rem; color: var(--muted); text-align: center; }
+  #drop-zone label {
+    cursor: pointer; background: var(--accent); color: #0d0f14;
+    padding: 8px 22px; border-radius: 8px; font-weight: 700; font-size: .82rem;
+    letter-spacing: .04em;
+  }
+  #drop-zone input { display: none; }
+
+  /* ── Termografía ── */
+  #thermo-panel { overflow: hidden; }
+  .thermo-inner { flex: 1; display: flex; overflow: hidden; }
+  .gallery-sidebar {
+    width: 220px; min-width: 220px; overflow-y: auto;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 12px 8px;
+  }
+  .gallery-sidebar h3 { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 10px; }
+  .thumb-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 12px;
+  }
+  .thumb {
+    aspect-ratio: 4/3; overflow: hidden; border-radius: 5px;
+    border: 2px solid transparent; cursor: pointer; transition: border-color .15s;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb:hover, .thumb.selected { border-color: var(--accent); }
+  .gallery-main {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #070a10; padding: 20px; position: relative;
+  }
+  .gallery-main img {
+    max-width: 100%; max-height: calc(100% - 60px);
+    object-fit: contain; border-radius: 8px;
+    box-shadow: 0 0 40px rgba(0,0,0,.6);
+  }
+  .img-nav {
+    display: flex; gap: 10px; margin-top: 16px; align-items: center;
+  }
+  .img-nav button {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); width: 36px; height: 36px; border-radius: 8px;
+    font-size: 1.1rem; cursor: pointer; transition: background .15s;
+  }
+  .img-nav button:hover { background: var(--border); }
+  .img-counter { font-size: .8rem; color: var(--muted); min-width: 80px; text-align: center; }
+  .tab-selector {
+    display: flex; gap: 0; padding: 10px 12px 0;
+  }
+  .tab-selector button {
+    flex: 1; padding: 7px; font-size: .75rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase;
+    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer; transition: all .15s;
+  }
+  .tab-selector button:first-child { border-radius: 6px 0 0 6px; }
+  .tab-selector button:last-child { border-radius: 0 6px 6px 0; }
+  .tab-selector button.active { background: var(--accent); color: #0d0f14; border-color: var(--accent); }
+
+  /* ── Map ── */
+  #map-panel { overflow: hidden; }
+  #map-wrap { flex: 1; position: relative; }
+  #leaflet-map { width: 100%; height: 100%; }
+  .map-overlay {
+    position: absolute; top: 14px; right: 14px; z-index: 1000;
+    background: rgba(13,15,20,.92); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; min-width: 200px;
+    backdrop-filter: blur(8px);
+  }
+  .map-overlay h4 { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  .map-overlay table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .map-overlay td { padding: 3px 0; }
+  .map-overlay td:first-child { color: var(--muted); padding-right: 10px; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    background: var(--surface); padding: 0 28px;
+  }
+  .stat {
+    flex: 1; padding: 10px 16px; border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-val { font-size: 1.2rem; font-weight: 700; }
+  .stat-lbl { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .c-critical { color: var(--critical); }
+  .c-high { color: var(--high); }
+  .c-accent { color: var(--accent); }
+  .c-info { color: var(--info); }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header>
+  <div class="logo">AION<span> · INSPECTION</span></div>
+  <div class="header-meta">
+    <div class="header-title">Aerogenerador Gamesa G52 — La Blanca, Santo Domingo Ingenio, Oaxaca</div>
+    <div class="header-sub">Misión: aka_jou_aerogenerador_mavic_3t &nbsp;·&nbsp; 2026-04-23 &nbsp;·&nbsp; DJI Mavic 3T</div>
+  </div>
+  <span class="badge badge-critical">Estado: Crítico</span>
+</header>
+
+<!-- ══════════════ TABS ══════════════ -->
+<nav>
+  <button class="active" onclick="switchTab('twin3d',this)">⬡ Gemelo 3D</button>
+  <button onclick="switchTab('thermo',this)">🌡 Termografía</button>
+  <button onclick="switchTab('map',this)">🛰 Satelital</button>
+</nav>
+
+<!-- ══════════════ STATS ══════════════ -->
+<div class="stats-bar">
+  <div class="stat"><span class="stat-val c-critical">9</span><span class="stat-lbl">Anomalías confirmadas</span></div>
+  <div class="stat"><span class="stat-val c-high">86°C</span><span class="stat-lbl">Temperatura pico (ΔT +61°C)</span></div>
+  <div class="stat"><span class="stat-val c-accent">19</span><span class="stat-lbl">Actores GLB cargados</span></div>
+  <div class="stat"><span class="stat-val c-info">IEC 61400-1</span><span class="stat-lbl">Norma aplicada</span></div>
+</div>
+
+<!-- ══════════════ PANEL: GEMELO 3D ══════════════ -->
+<div id="panel-twin3d" class="panel active">
+  <div id="viewer-wrap">
+    <canvas id="three-canvas"></canvas>
+    <div id="model-status"></div>
+    <div id="drop-zone">
+      <div class="dz-icon">⬡</div>
+      <div class="dz-title">Visor 3D — Aerogenerador</div>
+      <div class="dz-sub">Arrastra aquí el archivo<br/><b>Francel_aerogenerador.glb</b><br/>o selecciónalo manualmente</div>
+      <label>Seleccionar GLB <input type="file" id="glb-input" accept=".glb,.gltf"/></label>
+      <div class="dz-sub" style="font-size:.7rem;opacity:.6">En GitHub Pages carga automáticamente</div>
+    </div>
+    <div class="viewer-hint">Arrastrar: rotar &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Click derecho: desplazar</div>
+    <div class="viewer-controls">
+      <button onclick="resetCamera()">↺ Resetear vista</button>
+      <button onclick="setCameraView('front')">Frontal</button>
+      <button onclick="setCameraView('top')">Superior</button>
+      <button onclick="setCameraView('side')">Lateral</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PANEL: TERMOGRAFÍA ══════════════ -->
+<div id="panel-thermo" class="panel">
+  <div class="thermo-inner">
+    <div class="gallery-sidebar">
+      <div class="tab-selector">
+        <button class="active" onclick="setGalleryMode('thermal',this)">Térmica</button>
+        <button onclick="setGalleryMode('rgb',this)">RGB</button>
+      </div>
+      <br/>
+      <h3 id="sidebar-label">Frames térmicos</h3>
+      <div class="thumb-row" id="thumbs"></div>
+    </div>
+    <div class="gallery-main">
+      <img id="main-img" src="" alt="Selecciona una imagen"/>
+      <div class="img-nav">
+        <button onclick="prevImg()">‹</button>
+        <span class="img-counter" id="img-counter">1 / 30</span>
+        <button onclick="nextImg()">›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PANEL: SATELITAL ══════════════ -->
+<div id="panel-map" class="panel">
+  <div id="map-wrap">
+    <div id="leaflet-map"></div>
+    <div class="map-overlay">
+      <h4>Sitio de inspección</h4>
+      <table>
+        <tr><td>Parque</td><td>La Blanca</td></tr>
+        <tr><td>Municipio</td><td>Sto. Domingo Ingenio</td></tr>
+        <tr><td>Estado</td><td>Oaxaca, México</td></tr>
+        <tr><td>Lat</td><td>16.2437° N</td></tr>
+        <tr><td>Lon</td><td>94.6801° W</td></tr>
+        <tr><td>Altitud</td><td>~60 m s.n.m.</td></tr>
+        <tr><td>Aerogen.</td><td>Gamesa G52 / 850 kW</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SCRIPTS ══════════════ -->
+<script>
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'map' && !mapInit) initMap();
+  if (id === 'thermo' && !thumbsBuilt) buildThumbs();
+  if (id === 'twin3d' && renderer) renderer.setSize(
+    document.getElementById('viewer-wrap').clientWidth,
+    document.getElementById('viewer-wrap').clientHeight
+  );
+}
+
+// ── Three.js GLB Viewer ──────────────────────────────────────────────────────
+let scene, camera, renderer, model, animId;
+let isDragging = false, prevMouse = {x:0,y:0};
+let spherical = {theta: 0.4, phi: 1.2, radius: 4};
+
+function initThree() {
+  const wrap = document.getElementById('viewer-wrap');
+  const canvas = document.getElementById('three-canvas');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  renderer.shadowMap.enabled = true;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070a10);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
+  sun.position.set(5, 10, 8);
+  sun.castShadow = true;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x8090ff, 0.4);
+  fill.position.set(-5, 2, -4);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffd060, 0.5);
+  rim.position.set(0, -3, -6);
+  scene.add(rim);
+
+  // Grid
+  const grid = new THREE.GridHelper(20, 20, 0x1a1f2e, 0x1a1f2e);
+  grid.position.y = -2;
+  scene.add(grid);
+
+  camera = new THREE.PerspectiveCamera(45, W/H, 0.01, 1000);
+  updateCameraFromSpherical();
+
+  // Try loading from relative path (works on GitHub Pages / local server)
+  // Falls back to drag-and-drop UI if blocked
+  loadGLTFLoader().then(() => {
+    tryLoadGLB('models/Francel_aerogenerador.glb');
+  });
+
+  // Drag & drop on the viewer
+  const wrap2 = document.getElementById('viewer-wrap');
+  wrap2.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('drop-zone').classList.add('hover'); });
+  wrap2.addEventListener('dragleave', () => document.getElementById('drop-zone').classList.remove('hover'));
+  wrap2.addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.remove('hover');
+    const file = e.dataTransfer.files[0];
+    if (file) loadGLBFromFile(file);
+  });
+  document.getElementById('glb-input').addEventListener('change', e => {
+    if (e.target.files[0]) loadGLBFromFile(e.target.files[0]);
+  });
+
+  // Mouse / touch controls
+  canvas.addEventListener('mousedown', e => { isDragging=true; prevMouse={x:e.clientX,y:e.clientY}; });
+  window.addEventListener('mouseup', () => isDragging=false);
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevMouse.x, dy = e.clientY - prevMouse.y;
+    if (e.buttons === 1) {
+      spherical.theta -= dx * 0.008;
+      spherical.phi   = Math.max(0.05, Math.min(Math.PI-0.05, spherical.phi + dy*0.008));
+    } else if (e.buttons === 2) {
+      camera.position.x -= dx * 0.003 * spherical.radius;
+      camera.position.y += dy * 0.003 * spherical.radius;
+    }
+    prevMouse = {x:e.clientX, y:e.clientY};
+    if (e.buttons === 1) updateCameraFromSpherical();
+  });
+  canvas.addEventListener('wheel', e => {
+    spherical.radius = Math.max(0.5, Math.min(20, spherical.radius + e.deltaY * 0.005));
+    updateCameraFromSpherical();
+  });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  window.addEventListener('resize', () => {
+    const W2 = wrap.clientWidth, H2 = wrap.clientHeight;
+    camera.aspect = W2/H2; camera.updateProjectionMatrix();
+    renderer.setSize(W2, H2);
+  });
+}
+
+function updateCameraFromSpherical() {
+  if (!camera) return;
+  camera.position.set(
+    spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+    spherical.radius * Math.cos(spherical.phi),
+    spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+function animate() {
+  animId = requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+function resetCamera() {
+  spherical = {theta: 0.4, phi: 1.2, radius: 4};
+  camera.position.set(0,0,0);
+  updateCameraFromSpherical();
+}
+function setCameraView(v) {
+  if (v==='front')  { spherical.theta=0; spherical.phi=Math.PI/2; }
+  if (v==='top')    { spherical.theta=0; spherical.phi=0.05; }
+  if (v==='side')   { spherical.theta=Math.PI/2; spherical.phi=Math.PI/2; }
+  spherical.radius = 4;
+  updateCameraFromSpherical();
+}
+
+function tryLoadGLB(url) {
+  const loader = new THREE.GLTFLoader();
+  loader.load(
+    url,
+    (gltf) => { onGLBLoaded(gltf); },
+    (xhr) => {
+      if (xhr.total) {
+        const pct = Math.round(xhr.loaded / xhr.total * 100);
+        document.getElementById('model-status').textContent = `Cargando ${pct}%`;
+      }
+    },
+    () => { /* failed — leave drop-zone visible */ animate(); }
+  );
+}
+
+function loadGLBFromFile(file) {
+  const url = URL.createObjectURL(file);
+  document.getElementById('drop-zone').innerHTML =
+    `<div class="dz-icon">⏳</div><div class="dz-title">Cargando ${file.name}…</div>`;
+  tryLoadGLB(url);
+}
+
+function onGLBLoaded(gltf) {
+  model = gltf.scene;
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  model.position.sub(center);
+  model.scale.setScalar(3.5 / maxDim);
+  scene.add(model);
+  document.getElementById('drop-zone').style.display = 'none';
+  document.getElementById('model-status').style.display = 'none';
+  if (!animId) animate();
+}
+
+// Inline minimal GLTFLoader for Three r128
+function loadGLTFLoader() {
+  return new Promise(resolve => {
+    if (THREE.GLTFLoader) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    s.onload = resolve;
+    document.head.appendChild(s);
+  });
+}
+
+// ── Thermography gallery ──────────────────────────────────────────────────────
+const thermalImgs = [
+  "thermal_bbox_00000.jpg","thermal_bbox_00050.jpg","thermal_bbox_00100.jpg",
+  "thermal_bbox_00150.jpg","thermal_bbox_00200.jpg","thermal_bbox_00250.jpg",
+  "thermal_bbox_00300.jpg","thermal_bbox_00350.jpg","thermal_bbox_00400.jpg",
+  "thermal_bbox_00450.jpg","thermal_bbox_00500.jpg","thermal_bbox_00550.jpg",
+  "thermal_bbox_00600.jpg","thermal_bbox_00650.jpg","thermal_bbox_00700.jpg",
+  "thermal_bbox_00750.jpg","thermal_bbox_00800.jpg","thermal_bbox_00850.jpg",
+  "thermal_bbox_00900.jpg","thermal_bbox_00950.jpg","thermal_bbox_01000.jpg",
+  "thermal_bbox_01050.jpg","thermal_bbox_01100.jpg","thermal_bbox_01150.jpg",
+  "thermal_bbox_01200.jpg","thermal_bbox_01250.jpg","thermal_bbox_01300.jpg",
+  "thermal_bbox_01350.jpg","thermal_bbox_01400.jpg","thermal_bbox_01450.jpg"
+];
+const rgbImgs = [
+  "frame_0025_bbox.jpg","frame_0030_bbox.jpg","frame_0035_bbox.jpg",
+  "frame_0055_bbox.jpg","frame_0060_bbox.jpg","frame_0070_bbox.jpg",
+  "frame_0075_bbox.jpg","frame_0165_bbox.jpg","frame_0175_bbox.jpg"
+];
+
+let galleryMode = 'thermal';
+let currentIdx = 0;
+let thumbsBuilt = false;
+
+function currentList() { return galleryMode === 'thermal' ? thermalImgs : rgbImgs; }
+function currentFolder() { return galleryMode === 'thermal' ? 'images/thermal/' : 'images/rgb/'; }
+
+function buildThumbs() {
+  thumbsBuilt = true;
+  renderThumbs();
+  showImg(0);
+}
+
+function renderThumbs() {
+  const list = currentList(), folder = currentFolder();
+  const container = document.getElementById('thumbs');
+  container.innerHTML = '';
+  list.forEach((name, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb' + (i===currentIdx?' selected':'');
+    div.innerHTML = `<img src="${folder}${name}" loading="lazy" alt="${name}"/>`;
+    div.onclick = () => showImg(i);
+    container.appendChild(div);
+  });
+  document.getElementById('sidebar-label').textContent =
+    galleryMode === 'thermal' ? `Frames térmicos (${list.length})` : `Frames RGB anotados (${list.length})`;
+}
+
+function showImg(i) {
+  const list = currentList();
+  currentIdx = (i + list.length) % list.length;
+  document.getElementById('main-img').src = currentFolder() + list[currentIdx];
+  document.getElementById('img-counter').textContent = `${currentIdx+1} / ${list.length}`;
+  document.querySelectorAll('.thumb').forEach((t,j) => t.classList.toggle('selected', j===currentIdx));
+}
+
+function prevImg() { showImg(currentIdx - 1); }
+function nextImg() { showImg(currentIdx + 1); }
+
+function setGalleryMode(mode, btn) {
+  galleryMode = mode;
+  currentIdx = 0;
+  document.querySelectorAll('.tab-selector button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderThumbs();
+  showImg(0);
+}
+
+// ── Leaflet map ───────────────────────────────────────────────────────────────
+let mapInit = false;
+// La Blanca wind farm coordinates (Isthmus of Tehuantepec, Oaxaca)
+const SITE_LAT = 16.2437, SITE_LON = -94.6801;
+
+function initMap() {
+  mapInit = true;
+  const map = L.map('leaflet-map', { zoomControl: true }).setView([SITE_LAT, SITE_LON], 14);
+
+  // Satellite layer (ESRI)
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { attribution: 'Tiles © Esri', maxZoom: 19 }
+  ).addTo(map);
+
+  // Labels overlay
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    { attribution: '', maxZoom: 19, opacity: 0.7 }
+  ).addTo(map);
+
+  // Turbine marker
+  const turbineIcon = L.divIcon({
+    html: `<div style="
+      width:28px;height:28px;border-radius:50%;
+      background:#c9a84c;border:3px solid #fff;
+      display:flex;align-items:center;justify-content:center;
+      font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.5);">⬡</div>`,
+    className: '', iconSize: [28,28], iconAnchor: [14,14]
+  });
+
+  const marker = L.marker([SITE_LAT, SITE_LON], {icon: turbineIcon}).addTo(map);
+  marker.bindPopup(`
+    <div style="font-family:system-ui;font-size:13px;line-height:1.6;min-width:200px;">
+      <b style="color:#c9a84c">Aerogenerador Gamesa G52</b><br/>
+      La Blanca, Santo Domingo Ingenio<br/>
+      <span style="color:#888">Oaxaca, México</span><br/>
+      <hr style="border-color:#eee;margin:6px 0"/>
+      <b style="color:#ef4444">⚠ Estado: CRÍTICO</b><br/>
+      9 anomalías confirmadas<br/>
+      Temperatura pico: 86°C
+    </div>
+  `).openPopup();
+
+  // Wind farm boundary (approximate)
+  L.circle([SITE_LAT, SITE_LON], {
+    radius: 800, color: '#c9a84c', weight: 1.5,
+    fillColor: '#c9a84c', fillOpacity: 0.06
+  }).addTo(map);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initThree();
+  // Keyboard navigation in gallery
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('panel-thermo').classList.contains('active')) {
+      if (e.key === 'ArrowRight') nextImg();
+      if (e.key === 'ArrowLeft')  prevImg();
+    }
+  });
+});
+</script>
+</body>
+</html>
