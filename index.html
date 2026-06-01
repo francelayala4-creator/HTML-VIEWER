@@ -14,17 +14,7 @@
 
 <style>
   :root {
-    --bg: #0d0f14;
-    --surface: #13161e;
-    --border: #1f2433;
-    --accent: #c9a84c;
-    --accent2: #e8c96a;
-    --text: #e2e6f0;
-    --muted: #6b7280;
-    --critical: #ef4444;
-    --high: #f97316;
-    --info: #3b82f6;
-    --radius: 10px;
+    --bg:#0c0b10;--surface:#131118;--border:#1e1b28;--accent:#b89a5e;--accent2:#d4b87a;--text:#ddd8cc;--muted:#6b6478;--critical:#a8324a;--high:#b8733a;--info:#4a6fa8;--radius:10px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; }
@@ -47,7 +37,7 @@
     padding: 4px 12px; border-radius: 20px; font-size: .72rem; font-weight: 700;
     letter-spacing: .06em; text-transform: uppercase;
   }
-  .badge-critical { background: #3f1010; color: var(--critical); border: 1px solid #7f2020; }
+  .badge-critical { background: #2a0d16; color: var(--critical); border: 1px solid #6b1f2e; }
 
   /* ── Tabs ── */
   nav {
@@ -250,6 +240,19 @@
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Lightbox */
+  #lightbox{display:none;position:fixed;inset:0;z-index:99999;background:rgba(8,7,12,.97);backdrop-filter:blur(12px);align-items:center;justify-content:center;flex-direction:column;cursor:zoom-out}
+  #lightbox.open{display:flex}
+  #lightbox img{max-width:88vw;max-height:80vh;border-radius:10px;object-fit:contain;box-shadow:0 0 80px rgba(184,154,94,.12);cursor:default}
+  #lightbox-caption{margin-top:16px;font-size:.75rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+  #lb-close{position:fixed;top:22px;right:28px;background:none;border:none;color:var(--muted);font-size:1.8rem;cursor:pointer;transition:color .2s;z-index:100000}
+  #lb-close:hover{color:var(--text)}
+  #lb-prev,#lb-next{position:fixed;top:50%;transform:translateY(-50%);background:rgba(19,17,24,.75);border:1px solid var(--border);color:var(--text);width:46px;height:46px;border-radius:50%;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;z-index:100000}
+  #lb-prev{left:20px}#lb-next{right:20px}
+  #lb-prev:hover,#lb-next:hover{background:var(--border)}
+  .zoomable{cursor:zoom-in;transition:opacity .15s}
+  .zoomable:hover{opacity:.85}
 </style>
 </head>
 <body>
@@ -351,7 +354,7 @@
       <div class="thumb-row" id="thumbs"></div>
     </div>
     <div class="gallery-main">
-      <img id="main-img" src="" alt="Selecciona una imagen"/>
+      <img id="main-img" class="zoomable" src="" alt="" onclick="openLB(null,this.src,'',currentList().map((_,i)=>currentFolder()+currentList()[i]),currentIdx)"/>
       <div class="img-nav">
         <button onclick="prevImg()">‹</button>
         <span class="img-counter" id="img-counter">1 / 30</span>
@@ -469,7 +472,7 @@ function showAnomaly(idx) {
     <div class="ap-val">${a.risk}</div>
     <div class="ap-label">Métricas</div>
     <div class="ap-val">ΔT ${a.dt} &nbsp;·&nbsp; Confianza ${a.conf}</div>
-    <img class="ap-img" src="${a.img}" alt="evidencia"/>
+    <img class="ap-img zoomable" src="${a.img}" alt="evidencia" onclick="openLB(event,a.img,a.label,[],-1)"/>
   `;
   panel.classList.add('visible');
   document.querySelectorAll('.anm-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
@@ -575,6 +578,36 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// Lightbox
+var _lb=[],_lbI=0;
+function openLB(e,src,cap,list,idx){
+  if(e)e.stopPropagation();
+  if(list&&list.length>0){_lb=list.map((s,i)=>({s,c:s.split('/').pop()}));_lbI=idx>=0?idx:0;}
+  else{_lb=[{s:src,c:cap||''}];_lbI=0;}
+  _lbR();
+  document.getElementById('lightbox').classList.add('open');
+  var show=_lb.length>1?'flex':'none';
+  document.getElementById('lb-prev').style.display=show;
+  document.getElementById('lb-next').style.display=show;
+}
+function _lbR(){var it=_lb[_lbI];document.getElementById('lb-img').src=it.s;document.getElementById('lightbox-caption').textContent=it.c;}
+function lbNav(d){_lbI=(_lbI+d+_lb.length)%_lb.length;_lbR();}
+function closeLB(){document.getElementById('lightbox').classList.remove('open');}
+document.addEventListener('keydown',function(e){
+  if(!document.getElementById('lightbox').classList.contains('open'))return;
+  if(e.key==='Escape')closeLB();
+  if(e.key==='ArrowRight')lbNav(1);
+  if(e.key==='ArrowLeft')lbNav(-1);
+});
 </script>
+
+<div id="lightbox" onclick="if(event.target===this)closeLB()">
+  <button id="lb-close" onclick="closeLB()">&#x2715;</button>
+  <button id="lb-prev" onclick="lbNav(-1)">&#x2039;</button>
+  <button id="lb-next" onclick="lbNav(+1)">&#x203a;</button>
+  <img id="lb-img" src="" alt=""/>
+  <div id="lightbox-caption"></div>
+</div>
 </body>
 </html>
