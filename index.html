@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
-<!-- Three.js r128 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- model-viewer (Google) — carga GLB sin Three.js manual -->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
 <style>
   :root {
@@ -231,21 +231,30 @@
 <!-- ══════════════ PANEL: GEMELO 3D ══════════════ -->
 <div id="panel-twin3d" class="panel active">
   <div id="viewer-wrap">
-    <canvas id="three-canvas"></canvas>
-    <div id="model-status"></div>
-    <div id="drop-zone">
-      <div class="dz-icon">⬡</div>
-      <div class="dz-title">Visor 3D — Aerogenerador</div>
-      <div class="dz-sub">Arrastra aquí el archivo<br/><b>Francel_aerogenerador.glb</b><br/>o selecciónalo manualmente</div>
-      <label>Seleccionar GLB <input type="file" id="glb-input" accept=".glb,.gltf"/></label>
-      <div class="dz-sub" style="font-size:.7rem;opacity:.6">En GitHub Pages carga automáticamente</div>
-    </div>
+    <model-viewer
+      id="mv"
+      src="models/Francel_aerogenerador.glb"
+      alt="Aerogenerador Gamesa G52"
+      auto-rotate
+      camera-controls
+      shadow-intensity="1"
+      exposure="1.2"
+      environment-image="neutral"
+      style="width:100%;height:100%;background:#070a10;"
+    >
+      <div slot="progress-bar" style="
+        position:absolute;bottom:0;left:0;right:0;height:3px;
+        background:var(--accent);transform-origin:left;
+        transition:transform .3s;
+      " id="progress-bar"></div>
+      <span slot="ar-button"></span>
+    </model-viewer>
     <div class="viewer-hint">Arrastrar: rotar &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Click derecho: desplazar</div>
     <div class="viewer-controls">
-      <button onclick="resetCamera()">↺ Resetear vista</button>
-      <button onclick="setCameraView('front')">Frontal</button>
-      <button onclick="setCameraView('top')">Superior</button>
-      <button onclick="setCameraView('side')">Lateral</button>
+      <button onclick="document.getElementById('mv').cameraOrbit='0deg 90deg 4m'">Frontal</button>
+      <button onclick="document.getElementById('mv').cameraOrbit='0deg 0deg 4m'">Superior</button>
+      <button onclick="document.getElementById('mv').cameraOrbit='90deg 90deg 4m'">Lateral</button>
+      <button onclick="document.getElementById('mv').cameraOrbit='0deg 90deg auto'">↺ Reset</button>
     </div>
   </div>
 </div>
@@ -302,176 +311,6 @@ function switchTab(id, btn) {
   btn.classList.add('active');
   if (id === 'map' && !mapInit) initMap();
   if (id === 'thermo' && !thumbsBuilt) buildThumbs();
-  if (id === 'twin3d' && renderer) renderer.setSize(
-    document.getElementById('viewer-wrap').clientWidth,
-    document.getElementById('viewer-wrap').clientHeight
-  );
-}
-
-// ── Three.js GLB Viewer ──────────────────────────────────────────────────────
-let scene, camera, renderer, model, animId;
-let isDragging = false, prevMouse = {x:0,y:0};
-let spherical = {theta: 0.4, phi: 1.2, radius: 4};
-
-function initThree() {
-  const wrap = document.getElementById('viewer-wrap');
-  const canvas = document.getElementById('three-canvas');
-  const W = wrap.clientWidth, H = wrap.clientHeight;
-
-  renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
-  renderer.shadowMap.enabled = true;
-
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x070a10);
-
-  // Lights
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambient);
-  const sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
-  sun.position.set(5, 10, 8);
-  sun.castShadow = true;
-  scene.add(sun);
-  const fill = new THREE.DirectionalLight(0x8090ff, 0.4);
-  fill.position.set(-5, 2, -4);
-  scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xffd060, 0.5);
-  rim.position.set(0, -3, -6);
-  scene.add(rim);
-
-  // Grid
-  const grid = new THREE.GridHelper(20, 20, 0x1a1f2e, 0x1a1f2e);
-  grid.position.y = -2;
-  scene.add(grid);
-
-  camera = new THREE.PerspectiveCamera(45, W/H, 0.01, 1000);
-  updateCameraFromSpherical();
-
-  // Try loading from relative path (works on GitHub Pages / local server)
-  // Falls back to drag-and-drop UI if blocked
-  loadGLTFLoader().then(() => {
-    tryLoadGLB('models/Francel_aerogenerador.glb');
-  });
-
-  // Drag & drop on the viewer
-  const wrap2 = document.getElementById('viewer-wrap');
-  wrap2.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('drop-zone').classList.add('hover'); });
-  wrap2.addEventListener('dragleave', () => document.getElementById('drop-zone').classList.remove('hover'));
-  wrap2.addEventListener('drop', e => {
-    e.preventDefault();
-    document.getElementById('drop-zone').classList.remove('hover');
-    const file = e.dataTransfer.files[0];
-    if (file) loadGLBFromFile(file);
-  });
-  document.getElementById('glb-input').addEventListener('change', e => {
-    if (e.target.files[0]) loadGLBFromFile(e.target.files[0]);
-  });
-
-  // Mouse / touch controls
-  canvas.addEventListener('mousedown', e => { isDragging=true; prevMouse={x:e.clientX,y:e.clientY}; });
-  window.addEventListener('mouseup', () => isDragging=false);
-  window.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    const dx = e.clientX - prevMouse.x, dy = e.clientY - prevMouse.y;
-    if (e.buttons === 1) {
-      spherical.theta -= dx * 0.008;
-      spherical.phi   = Math.max(0.05, Math.min(Math.PI-0.05, spherical.phi + dy*0.008));
-    } else if (e.buttons === 2) {
-      camera.position.x -= dx * 0.003 * spherical.radius;
-      camera.position.y += dy * 0.003 * spherical.radius;
-    }
-    prevMouse = {x:e.clientX, y:e.clientY};
-    if (e.buttons === 1) updateCameraFromSpherical();
-  });
-  canvas.addEventListener('wheel', e => {
-    spherical.radius = Math.max(0.5, Math.min(20, spherical.radius + e.deltaY * 0.005));
-    updateCameraFromSpherical();
-  });
-  canvas.addEventListener('contextmenu', e => e.preventDefault());
-  window.addEventListener('resize', () => {
-    const W2 = wrap.clientWidth, H2 = wrap.clientHeight;
-    camera.aspect = W2/H2; camera.updateProjectionMatrix();
-    renderer.setSize(W2, H2);
-  });
-}
-
-function updateCameraFromSpherical() {
-  if (!camera) return;
-  camera.position.set(
-    spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
-    spherical.radius * Math.cos(spherical.phi),
-    spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
-  );
-  camera.lookAt(0, 0, 0);
-}
-
-function animate() {
-  animId = requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-}
-
-function resetCamera() {
-  spherical = {theta: 0.4, phi: 1.2, radius: 4};
-  camera.position.set(0,0,0);
-  updateCameraFromSpherical();
-}
-function setCameraView(v) {
-  if (v==='front')  { spherical.theta=0; spherical.phi=Math.PI/2; }
-  if (v==='top')    { spherical.theta=0; spherical.phi=0.05; }
-  if (v==='side')   { spherical.theta=Math.PI/2; spherical.phi=Math.PI/2; }
-  spherical.radius = 4;
-  updateCameraFromSpherical();
-}
-
-function tryLoadGLB(url) {
-  const loader = new THREE.GLTFLoader();
-  loader.load(
-    url,
-    (gltf) => { onGLBLoaded(gltf); },
-    (xhr) => {
-      if (xhr.total) {
-        const pct = Math.round(xhr.loaded / xhr.total * 100);
-        document.getElementById('model-status').textContent = `Cargando ${pct}%`;
-      }
-    },
-    () => { /* failed — leave drop-zone visible */ animate(); }
-  );
-}
-
-function loadGLBFromFile(file) {
-  const url = URL.createObjectURL(file);
-  document.getElementById('drop-zone').innerHTML =
-    `<div class="dz-icon">⏳</div><div class="dz-title">Cargando ${file.name}…</div>`;
-  tryLoadGLB(url);
-}
-
-function onGLBLoaded(gltf) {
-  model = gltf.scene;
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z);
-  model.position.sub(center);
-  model.scale.setScalar(3.5 / maxDim);
-  scene.add(model);
-  document.getElementById('drop-zone').style.display = 'none';
-  document.getElementById('model-status').style.display = 'none';
-  if (!animId) animate();
-}
-
-// Inline minimal GLTFLoader for Three r128
-function loadGLTFLoader() {
-  return new Promise(resolve => {
-    if (THREE.GLTFLoader) { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    s.onload = resolve;
-    document.head.appendChild(s);
-  });
 }
 
 // ── Thermography gallery ──────────────────────────────────────────────────────
@@ -594,7 +433,6 @@ function initMap() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  initThree();
   // Keyboard navigation in gallery
   document.addEventListener('keydown', e => {
     if (document.getElementById('panel-thermo').classList.contains('active')) {
