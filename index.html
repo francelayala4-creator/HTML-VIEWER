@@ -35,6 +35,7 @@
     padding: 16px 28px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 9999;
   }
   .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: .12em; color: var(--accent); }
   .logo span { color: var(--text); font-weight: 300; }
@@ -53,7 +54,7 @@
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 0 28px;
-    position: relative; z-index: 50;
+    position: sticky; top: 0; z-index: 9999;
   }
   nav button {
     background: none; border: none; color: var(--muted); cursor: pointer;
@@ -303,10 +304,11 @@
         alt="Aerogenerador Gamesa G52"
         auto-rotate
         camera-controls
+        interaction-policy="allow-when-focused"
         shadow-intensity="1"
         exposure="1.2"
         environment-image="neutral"
-        style="width:100%;height:100%;background:#2a2d35;"
+        style="width:100%;height:100%;background:#2a2d35;display:block;"
       >
         <span slot="ar-button"></span>
       </model-viewer>
