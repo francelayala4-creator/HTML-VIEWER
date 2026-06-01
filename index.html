@@ -27,7 +27,8 @@
     --radius: 10px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; }
 
   /* ── Header ── */
   header {
@@ -67,7 +68,7 @@
   nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
 
   /* ── Panels ── */
-  .panel { display: none; height: calc(100vh - 165px); }
+  .panel { display: none; flex: 1; overflow: hidden; }
   .panel.active { display: flex; flex-direction: column; }
 
   /* ── 3D viewer ── */
@@ -302,9 +303,7 @@
         id="mv"
         src="models/Francel_aerogenerador.glb"
         alt="Aerogenerador Gamesa G52"
-        auto-rotate
         camera-controls
-        interaction-policy="allow-when-focused"
         shadow-intensity="1"
         exposure="1.2"
         environment-image="neutral"
@@ -558,26 +557,8 @@ function initMap() {
 
   L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    { attribution: '', maxZoom: 19, opacity: 0.7 }
-  ).addTo(map);
-
-  const turbineIcon = L.divIcon({
-    html: `<div style="width:28px;height:28px;border-radius:50%;background:#c9a84c;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.5);">⬡</div>`,
-    className: '', iconSize: [28,28], iconAnchor: [14,14]
-  });
-
-  const marker = L.marker([SITE_LAT, SITE_LON], {icon: turbineIcon}).addTo(map);
-  marker.bindPopup(`
-    <div style="font-family:system-ui;font-size:13px;line-height:1.6;min-width:200px;">
-      <b style="color:#c9a84c">Aerogenerador Gamesa G52</b><br/>
-      La Blanca, Santo Domingo Ingenio<br/>
-      <span style="color:#888">Oaxaca, Mexico</span><br/>
-      <hr style="border-color:#eee;margin:6px 0"/>
-      <b style="color:#ef4444">⚠ Estado: CRITICO</b><br/>
-      9 anomalias confirmadas<br/>
-      Temperatura pico: 86°C
-    </div>
-  `).openPopup();
+    { attribution: '', maxZoom: 19, opacity: 0.7
+  }).addTo(map);
 
   L.circle([SITE_LAT, SITE_LON], {
     radius: 500, color: '#c9a84c', weight: 1.5,
@@ -585,9 +566,8 @@ function initMap() {
   }).addTo(map);
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// Init
 window.addEventListener('DOMContentLoaded', () => {
-  buildAnomalySidebar();
   document.addEventListener('keydown', e => {
     if (document.getElementById('panel-thermo').classList.contains('active')) {
       if (e.key === 'ArrowRight') nextImg();
@@ -595,7 +575,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
 </script>
 </body>
 </html>
