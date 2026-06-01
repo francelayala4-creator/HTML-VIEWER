@@ -113,6 +113,44 @@
   }
   #drop-zone input { display: none; }
 
+  /* ── Hotspots ── */
+  .hotspot {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2.5px solid white; cursor: pointer;
+    font-size: .7rem; font-weight: 800; color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,.6);
+    transition: transform .15s;
+    --min-hotspot-opacity: 0;
+  }
+  .hotspot:hover { transform: scale(1.3); }
+  .hotspot.critical { background: #ef4444; }
+  .hotspot.high     { background: #f97316; }
+  .hotspot.oil      { background: #8b5cf6; }
+  .hotspot[data-visible="false"] { opacity: 0.3; }
+
+  /* ── Anomaly detail panel ── */
+  #anomaly-panel {
+    position: absolute; right: 14px; top: 50px; width: 270px;
+    background: rgba(13,15,20,.95); border: 1px solid var(--border);
+    border-radius: var(--radius); backdrop-filter: blur(8px);
+    z-index: 100; display: none; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  #anomaly-panel.visible { display: block; }
+  .ap-header {
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ap-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .ap-title { font-size: .88rem; font-weight: 700; flex: 1; }
+  .ap-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
+  .ap-body { padding: 12px 14px; font-size: .78rem; line-height: 1.6; }
+  .ap-body .ap-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 8px; }
+  .ap-body .ap-val { color: var(--text); margin-bottom: 2px; }
+  .ap-sev { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: .68rem; font-weight: 700; margin-top: 6px; }
+  .ap-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; margin-top: 8px; }
+
   /* ── Termografía ── */
   #thermo-panel { overflow: hidden; }
   .thermo-inner { flex: 1; display: flex; overflow: hidden; }
@@ -248,7 +286,63 @@
         transition:transform .3s;
       " id="progress-bar"></div>
       <span slot="ar-button"></span>
+
+      <!-- Hotspot: Aspa A – Raíz -->
+      <button class="hotspot critical" slot="hotspot-1"
+        data-position="3.7 71 9" data-normal="0 0 1"
+        onclick="showAnomaly(0)">1</button>
+
+      <!-- Hotspot: Aspa B – Raíz -->
+      <button class="hotspot critical" slot="hotspot-2"
+        data-position="14 55 -8" data-normal="1 0 0"
+        onclick="showAnomaly(1)">2</button>
+
+      <!-- Hotspot: Aspa C – Raíz -->
+      <button class="hotspot critical" slot="hotspot-3"
+        data-position="-9 55 -8" data-normal="-1 0 0"
+        onclick="showAnomaly(2)">3</button>
+
+      <!-- Hotspot: Hub central -->
+      <button class="hotspot high" slot="hotspot-4"
+        data-position="3.7 62 5" data-normal="0 0 1"
+        onclick="showAnomaly(3)">4</button>
+
+      <!-- Hotspot: Góndola / Nacela -->
+      <button class="hotspot high" slot="hotspot-5"
+        data-position="3.7 64 -10" data-normal="0 0 -1"
+        onclick="showAnomaly(4)">5</button>
+
+      <!-- Hotspot: Derrame aceite – Mástil superior -->
+      <button class="hotspot oil" slot="hotspot-6"
+        data-position="3.7 46 5" data-normal="0 0 1"
+        onclick="showAnomaly(5)">6</button>
+
+      <!-- Hotspot: Aspa A – Sección media -->
+      <button class="hotspot high" slot="hotspot-7"
+        data-position="3.7 79 18" data-normal="0 0 1"
+        onclick="showAnomaly(6)">7</button>
+
+      <!-- Hotspot: Aspa B – Sección media -->
+      <button class="hotspot high" slot="hotspot-8"
+        data-position="20 55 -4" data-normal="1 0 0"
+        onclick="showAnomaly(7)">8</button>
+
+      <!-- Hotspot: Mástil – Zona media -->
+      <button class="hotspot high" slot="hotspot-9"
+        data-position="3.7 28 5" data-normal="0 0 1"
+        onclick="showAnomaly(8)">9</button>
+
     </model-viewer>
+
+    <!-- Anomaly detail panel -->
+    <div id="anomaly-panel">
+      <div class="ap-header">
+        <div class="ap-dot" id="ap-dot"></div>
+        <div class="ap-title" id="ap-title"></div>
+        <button class="ap-close" onclick="document.getElementById('anomaly-panel').classList.remove('visible')">✕</button>
+      </div>
+      <div class="ap-body" id="ap-body"></div>
+    </div>
     <div class="viewer-hint">Arrastrar: rotar &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Click derecho: desplazar</div>
     <div class="viewer-controls">
       <button onclick="document.getElementById('mv').cameraOrbit='0deg 90deg 4m'">Frontal</button>
@@ -311,6 +405,73 @@ function switchTab(id, btn) {
   btn.classList.add('active');
   if (id === 'map' && !mapInit) initMap();
   if (id === 'thermo' && !thumbsBuilt) buildThumbs();
+}
+
+// ── Anomaly data ─────────────────────────────────────────────────────────────
+const ANOMALIES = [
+  { id:1, label:"Aspa A — Raíz",       sev:"CRÍTICA",  color:"#ef4444",
+    dt:"+61°C", conf:"99%",
+    desc:"Sobrecalentamiento crítico en la raíz del aspa A. Temperatura pico 86°C registrada en múltiples frames consecutivos.",
+    risk:"Posible fallo en el rodamiento de paso (pitch bearing). Requiere inspección inmediata del sistema de lubricación y rodamiento.",
+    img:"images/rgb/frame_0025_bbox.jpg" },
+  { id:2, label:"Aspa B — Raíz",       sev:"CRÍTICA",  color:"#ef4444",
+    dt:"+58°C", conf:"97%",
+    desc:"Sobrecalentamiento crítico en raíz de aspa B. Gradiente térmico anormal respecto a aspa C.",
+    risk:"Desequilibrio térmico entre aspas sugiere fallo selectivo en pitch bearing B. Intervención prioritaria antes de próxima campaña de viento.",
+    img:"images/rgb/frame_0030_bbox.jpg" },
+  { id:3, label:"Aspa C — Raíz",       sev:"CRÍTICA",  color:"#ef4444",
+    dt:"+54°C", conf:"96%",
+    desc:"Sobrecalentamiento en raíz de aspa C. Temperatura inferior a aspas A y B pero supera umbral crítico.",
+    risk:"Rodamiento de paso en etapa inicial de degradación. Monitoreo intensivo recomendado cada 72h.",
+    img:"images/rgb/frame_0035_bbox.jpg" },
+  { id:4, label:"Hub — Centro",         sev:"ALTA",     color:"#f97316",
+    dt:"+38°C", conf:"94%",
+    desc:"Anomalía térmica en zona central del hub. Distribución radial irregular de temperatura.",
+    risk:"Posible sobrecalentamiento en yaw drive o cojinetes principales del rotor. Verificar nivel y calidad del lubricante.",
+    img:"images/rgb/frame_0055_bbox.jpg" },
+  { id:5, label:"Góndola — Nacela",     sev:"ALTA",     color:"#f97316",
+    dt:"+29°C", conf:"93%",
+    desc:"Temperatura elevada en carcasa posterior de la góndola. Distribución no uniforme.",
+    risk:"Posible fallo en el generador o caja multiplicadora. Verificar ventilación interna y nivel de aceite de la multiplicadora.",
+    img:"images/rgb/frame_0060_bbox.jpg" },
+  { id:6, label:"Mástil sup. — Derrame", sev:"CRÍTICA", color:"#8b5cf6",
+    dt:"N/A",   conf:"99%",
+    desc:"Derrame de aceite/grasa confirmado visualmente. Manchas marrón-oscuro bajo la góndola, sección superior del mástil.",
+    risk:"Origen probable: sello del yaw drive o rodamientos de la nacela. Requiere intervención inmediata para evitar contaminación y daño estructural.",
+    img:"images/rgb/frame_0070_bbox.jpg" },
+  { id:7, label:"Aspa A — Sección media", sev:"ALTA",   color:"#f97316",
+    dt:"+22°C", conf:"91%",
+    desc:"Punto caliente localizado en sección media del aspa A. Posible delaminación interna.",
+    risk:"Daño estructural incipiente en material compuesto. Inspección visual y ultrasonido recomendada antes de próxima parada.",
+    img:"images/rgb/frame_0075_bbox.jpg" },
+  { id:8, label:"Aspa B — Sección media", sev:"ALTA",   color:"#f97316",
+    dt:"+18°C", conf:"89%",
+    desc:"Anomalía térmica menor en sección media aspa B. Patrón consistente con separación de capas en fibra de vidrio.",
+    risk:"Delaminación temprana. Monitorear evolución. Programar reparación en próxima parada planificada.",
+    img:"images/rgb/frame_0165_bbox.jpg" },
+  { id:9, label:"Mástil — Zona media",   sev:"ALTA",    color:"#f97316",
+    dt:"+15°C", conf:"88%",
+    desc:"Temperatura anómala en zona media del mástil. Posible pérdida de aislamiento o acumulación de humedad.",
+    risk:"Revisar integridad del revestimiento protector y sellado de accesos al mástil. Riesgo de corrosión interna.",
+    img:"images/rgb/frame_0175_bbox.jpg" },
+];
+
+function showAnomaly(idx) {
+  const a = ANOMALIES[idx];
+  const panel = document.getElementById('anomaly-panel');
+  document.getElementById('ap-dot').style.background = a.color;
+  document.getElementById('ap-title').textContent = `#${a.id} ${a.label}`;
+  document.getElementById('ap-body').innerHTML = `
+    <span class="ap-sev" style="background:${a.color}22;color:${a.color};border:1px solid ${a.color}44">${a.sev}</span>
+    <div class="ap-label">Descripción</div>
+    <div class="ap-val">${a.desc}</div>
+    <div class="ap-label">Riesgo / Acción</div>
+    <div class="ap-val">${a.risk}</div>
+    <div class="ap-label">Métricas</div>
+    <div class="ap-val">ΔT ${a.dt} &nbsp;·&nbsp; Confianza ${a.conf}</div>
+    <img class="ap-img" src="${a.img}" alt="evidencia"/>
+  `;
+  panel.classList.add('visible');
 }
 
 // ── Thermography gallery ──────────────────────────────────────────────────────
